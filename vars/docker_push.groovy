@@ -1,19 +1,16 @@
-def call(Map config = [:]) {
-    def imageName = config.imageName ?: error("Image name is required")
-    def imageTag = config.imageTag ?: 'latest'
-    def credentials = config.credentials ?: 'docker-hub-credentials'
-    
-    echo "Pushing Docker image: ${imageName}:${imageTag}"
-    
+def call(String credId, String imageName) {
     withCredentials([usernamePassword(
-        credentialsId: credentials,
-        usernameVariable: 'DOCKER_USERNAME',
-        passwordVariable: 'DOCKER_PASSWORD'
+        credentialsId: credId,
+        passwordVariable: 'DOCKER_HUB_PASS',
+        usernameVariable: 'DOCKER_HUB_USER'
     )]) {
-        sh """
-            echo "\$DOCKER_PASSWORD" | docker login -u "\$DOCKER_USERNAME" --password-stdin
-            docker push ${imageName}:${imageTag}
-            docker push ${imageName}:latest
-        """
+        // Log into Docker Hub securely using standard input
+        sh 'echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin'
+        
+        // Tag the image (Ensure the syntax is valid Groovy interpolation)
+        sh "docker image tag ${imageName} \$DOCKER_HUB_USER/${imageName}:latest"
+        
+        // Push the newly tagged image to the registry
+        sh "docker push \$DOCKER_HUB_USER/${imageName}:latest"
     }
 }
